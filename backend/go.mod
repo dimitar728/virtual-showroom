@@ -3,6 +3,12 @@ module github.com/dimitar728/virtual-showroom/backend
 go 1.24.5
 
 require (
+	github.com/gin-contrib/cors v1.7.2
+	golang.org/x/crypto v0.23.0
+	gorm.io/gorm v1.25.11
+)
+
+require (
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/gofiber/fiber/v2 v2.52.9 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
