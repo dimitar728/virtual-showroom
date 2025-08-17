@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/dimitar728/virtual-showroom/backend/internal/database"
 	"github.com/dimitar728/virtual-showroom/backend/internal/models"
 	"github.com/dimitar728/virtual-showroom/backend/internal/services"
 	"github.com/gin-gonic/gin"
@@ -78,4 +79,28 @@ func (c *UserController) ListUsers(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, users)
+}
+
+// Suspend user
+func SuspendUser(c *gin.Context) {
+	id := c.Param("id")
+	if err := database.DB.Model(&models.User{}).
+		Where("id = ?", id).
+		Update("status", "suspended").Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to suspend user"})
+		return
+	}
+	c.Status(http.StatusOK)
+}
+
+// Reactivate user
+func ReactivateUser(c *gin.Context) {
+	id := c.Param("id")
+	if err := database.DB.Model(&models.User{}).
+		Where("id = ?", id).
+		Update("status", "active").Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to reactivate user"})
+		return
+	}
+	c.Status(http.StatusOK)
 }
