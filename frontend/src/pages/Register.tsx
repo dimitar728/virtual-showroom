@@ -1,8 +1,7 @@
-
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
-export default function Login() {
+export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
@@ -13,19 +12,16 @@ export default function Login() {
     setError(null);
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
-      if (!res.ok) throw new Error("Invalid credentials");
-      const data = await res.json();
+      if (!res.ok) throw new Error("Failed to register");
+      await res.json();
 
-      // store JWT (you can use localStorage or cookies)
-      localStorage.setItem("token", data.token);
-
-      navigate("/dashboard");
+      navigate("/login");
     } catch (err) {
       setError(err.message);
     }
@@ -34,7 +30,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white p-8 rounded-2xl shadow-md w-96">
-        <h2 className="text-2xl font-bold mb-6">Login</h2>
+        <h2 className="text-2xl font-bold mb-6">Register</h2>
         {error && <p className="text-red-600 mb-4">{error}</p>}
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
@@ -55,29 +51,14 @@ export default function Login() {
           />
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
+            className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700"
           >
-
-import { Link } from "react-router-dom";
-
-export default function Login() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-2xl shadow-md w-96">
-        <h2 className="text-2xl font-semibold mb-6">Login</h2>
-        <form className="space-y-4">
-          <input type="email" placeholder="Email"
-            className="w-full px-4 py-2 border rounded-lg focus:ring focus:ring-blue-300" />
-          <input type="password" placeholder="Password"
-            className="w-full px-4 py-2 border rounded-lg focus:ring focus:ring-blue-300" />
-          <button type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
-            Login
+            Register
           </button>
         </form>
         <p className="mt-4 text-sm">
-          Don’t have an account?{" "}
-          <Link to="/register" className="text-blue-600">Register</Link>
+          Already have an account?{" "}
+          <Link to="/login" className="text-blue-600">Login</Link>
         </p>
       </div>
     </div>
