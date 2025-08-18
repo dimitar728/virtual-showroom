@@ -6,6 +6,16 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 )
+
+
+func GetAllUsers(c *fiber.Ctx) error {
+	var users []models.User
+	if err := database.DB.Find(&users).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch users"})
+	}
+	return c.JSON(users)
+}
+
 // Suspend a user
 func SuspendUser(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -35,12 +45,7 @@ func DeleteUser(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to delete user"})
 	}
 	return c.JSON(fiber.Map{"message": "User deleted"})
-=======
-func GetAllUsers(c *fiber.Ctx) error {
-	var users []models.User
-	database.DB.Find(&users)
-	return c.JSON(users)
-}
+
 
 func UpdateUserRole(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -57,3 +62,4 @@ func UpdateUserRole(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"message": "Role updated"})
 }
+
