@@ -8,6 +8,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+
 func Login(c *fiber.Ctx) error {
 	var body struct {
 		Email    string `json:"email"`
@@ -22,9 +23,20 @@ func Login(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid email or password"})
 	}
 
+
+type RegisterRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Role     string `json:"role"` // Optional: Only admins can set
+}
+
+func Register(c *fiber.Ctx) error {
+	var body RegisterRequest
+
 	if err := c.BodyParser(&body); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
 	}
+
 
 	var user models.User
 	if err := database.DB.Where("email = ?", body.Email).First(&user).Error; err != nil {
@@ -46,4 +58,27 @@ func Login(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"token": token})
+
+	hash, _ := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+	user := models.User{
+		Email:        body.Email,
+		PasswordHash: string(hash),
+		Role:         models.RoleUser,
+	}
+
+	// Optional: Allow role assignment only for admin
+	if body.Role == "admin" {
+		// Check if requester is admin
+		reqUser := c.Locals("user")
+		if reqUser != nil && reqUser.(string) == "admin" {
+			user.Role = models.RoleAdmin
+		}
+	}
+
+	if err := database.DB.Create(&user).Error; err != nil {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Email already exists"})
+	}
+
+	return c.JSON(fiber.Map{"message": "User registered successfully"})
+
 }
