@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+
 func main() {
 	// Load env
 	if err := godotenv.Load(); err != nil {

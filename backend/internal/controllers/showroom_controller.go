@@ -3,10 +3,12 @@ package controllers
 import (
 
 	"fmt"
-	"time"
+	"mime/multipart"
+	"path/filepath"
+	"strings"
 
-	"github.com/dimitar728/virtual-showroom/backend/internal/database"
-	"github.com/dimitar728/virtual-showroom/backend/internal/models"
+	"fmt"
+	"time"
 
 	"github.com/dimitar728/virtual-showroom/backend/internal/database"
 	"github.com/dimitar728/virtual-showroom/backend/internal/models"
@@ -17,6 +19,10 @@ import (
 
 // GET /api/showrooms
 func CreateShowroom(c *fiber.Ctx) error {
+	if err := utils.ValidateModelPath(filename); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+
 	// Parse text fields
 	name := c.FormValue("name")
 	description := c.FormValue("description")
@@ -102,10 +108,16 @@ func CreateShowroom(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "failed to create showroom"})
 	}
 	return c.Status(201).JSON(body)
+
 }
 
 // PATCH /api/showrooms/:id (admin only)
 func UpdateShowroom(c *fiber.Ctx) error {
+	if err := utils.ValidateModelPath(filename); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+}
+
 	id := c.Params("id")
 	var showroom models.Showroom
 
