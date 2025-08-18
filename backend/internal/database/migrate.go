@@ -7,6 +7,7 @@ import (
 )
 
 func Migrate() {
+	err := DB.AutoMigrate(&models.Booking{})
 	err := DB.AutoMigrate(&models.User{})
 	if err != nil {
 		log.Fatalf("Failed to migrate: %v", err)
