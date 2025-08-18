@@ -12,6 +12,10 @@ type UserRole string
 const (
 	RoleUser  UserRole = "user"
 	RoleAdmin UserRole = "admin"
+	StatusActive    UserStatus = "active"
+	StatusSuspended UserStatus = "suspended"
+)
+=======
 )
 
 type User struct {
@@ -27,3 +31,4 @@ func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 	u.ID = uuid.New()
 	return
 }
+
