@@ -12,6 +12,7 @@ import (
 )
 
 
+
 func main() {
 	// Load env
 	if err := godotenv.Load(); err != nil {

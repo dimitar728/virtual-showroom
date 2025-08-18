@@ -1,9 +1,33 @@
 package middleware
 
 import (
-	"yourapp/utils"
+	"net/http"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+)
+
+func AuthMiddleware(secret string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenStr := c.GetHeader("Authorization")
+		if tokenStr == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Missing token"})
+			return
+		}
+
+		token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+			return []byte(secret), nil
+		})
+		if err != nil || !token.Valid {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			return
+		}
+
+		claims := token.Claims.(jwt.MapClaims)
+		c.Set("userID", claims["id"].(string))
+		c.Set("role", claims["role"].(string))
+		c.Next()
+	}
 )
 
 func RequireAuth(c *fiber.Ctx) error {
