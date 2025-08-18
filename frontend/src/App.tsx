@@ -1,5 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+<<<<<<< HEAD
 import Home from "./pages/Home";
+=======
+import Home from "./pages/Home"
+>>>>>>> feature/HVSBS-110/UserManager-Suspend/delete/reactivate-users
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
