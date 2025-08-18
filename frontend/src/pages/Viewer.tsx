@@ -5,7 +5,7 @@ import ModelViewer from "../components/ModelViewer";
 export default function Viewer() {
   const urlParam = new URLSearchParams(window.location.search);
   const modelUrl = urlParam.get("model") || "/models/dummy.glb";
-
+  const modelUrl = urlParam.get("model") || "/uploads/default.glb";
   return (
     <div className="w-full h-full">
       <ModelViewer modelUrl={modelUrl} />
