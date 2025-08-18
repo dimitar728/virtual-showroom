@@ -59,6 +59,9 @@ func main() {
 			admin.PATCH("/users/:id", AdminPatchUserHandler(db))
 			admin.DELETE("/users/:id", AdminDeleteUserHandler(db))
 			admin.GET("/bookings", func(c *gin.Context) { c.JSON(200, gin.H{"msg": "not implemented in this example"}) })
+
+			admin.POST("/showrooms/:id/upload", controllers.UploadModel)
+
 		}
 	}
 
@@ -126,6 +129,7 @@ func main() {
 			admin.GET("/bookings", func(c *gin.Context) { c.JSON(200, gin.H{"msg": "not implemented in this example"}) })
 		}
 	}
+
 
 
 	port := cfg.Port

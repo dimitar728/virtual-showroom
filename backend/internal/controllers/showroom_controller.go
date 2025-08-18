@@ -6,8 +6,6 @@ import (
 	"mime/multipart"
 	"path/filepath"
 	"strings"
-
-	"fmt"
 	"time"
 
 	"github.com/dimitar728/virtual-showroom/backend/internal/database"
@@ -17,11 +15,28 @@ import (
 	"gorm.io/gorm"
 )
 
+
+// --- Helpers ---
+func validateModelFile(file *multipart.FileHeader) error {
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	if ext != ".glb" && ext != ".gltf" {
+		return fmt.Errorf("invalid file type: only .glb/.gltf allowed")
+	}
+	if file.Size > 50*1024*1024 { // 50MB limit
+		return fmt.Errorf("file too large (max 50MB)")
+	}
+	return nil
+}
+
+// GET /api/showrooms
+func CreateShowroom(c *fiber.Ctx) error {
+
 // GET /api/showrooms
 func CreateShowroom(c *fiber.Ctx) error {
 	if err := utils.ValidateModelPath(filename); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
+
 
 	// Parse text fields
 	name := c.FormValue("name")
@@ -65,6 +80,12 @@ func CreateShowroom(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "failed to create showroom"})
 	}
 	return c.Status(201).JSON(showroom)
+
+
+	if err := utils.ValidateModelPath(filename); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+
 }
 
 func GetShowrooms(c *fiber.Ctx) error {
@@ -73,6 +94,7 @@ func GetShowrooms(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "failed to fetch showrooms"})
 	}
 	return c.JSON(showrooms)
+
 }
 
 // GET /api/showrooms/:id
@@ -88,6 +110,10 @@ func GetShowroomByID(c *fiber.Ctx) error {
 	}
 	return c.JSON(showroom)
 }
+
+
+// PATCH /api/showrooms/:id (admin only)
+func UpdateShowroom(c *fiber.Ctx) error {
 
 // POST /api/showrooms (admin only)
 func CreateShowroom(c *fiber.Ctx) error {
@@ -118,11 +144,11 @@ func UpdateShowroom(c *fiber.Ctx) error {
 	}
 }
 
+
 	id := c.Params("id")
 	var showroom models.Showroom
 
 	if err := database.DB.First(&showroom, "id = ?", id).Error; err != nil {
-
 		if err == gorm.ErrRecordNotFound {
 			return c.Status(404).JSON(fiber.Map{"error": "showroom not found"})
 		}
@@ -159,6 +185,17 @@ func UpdateShowroom(c *fiber.Ctx) error {
 
 	if err := database.DB.Save(&showroom).Error; err != nil {
 
+		return c.Status(500).JSON(fiber.Map{"error": "failed to update showroom"})
+	}
+	return c.JSON(showroom)
+
+	if err := utils.ValidateModelPath(filename); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+}
+
+
+
 		return c.Status(404).JSON(fiber.Map{"error": "showroom not found"})
 	}
 
@@ -175,6 +212,7 @@ func UpdateShowroom(c *fiber.Ctx) error {
 }
 
 
+
 // DELETE /api/showrooms/:id (admin only)
 func DeleteShowroom(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -182,5 +220,31 @@ func DeleteShowroom(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "failed to delete showroom"})
 	}
 	return c.SendStatus(204)
+}
+
+
+func UploadModel(c *gin.Context) {
+	id := c.Param("id")
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing file"})
+		return
+	}
+
+	// save file
+	savePath := "uploads/models/" + file.Filename
+	if err := c.SaveUploadedFile(file, savePath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
+		return
+	}
+
+	if err := database.DB.Model(&models.Showroom{}).
+		Where("id = ?", id).
+		Update("model_path", savePath).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update showroom"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"model_path": savePath})
 }
 
