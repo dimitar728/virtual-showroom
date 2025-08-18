@@ -23,7 +23,6 @@ function App() {
             </RoleProtectedRoute>
           }
         />
-
       </Routes>
     </BrowserRouter>
   );
