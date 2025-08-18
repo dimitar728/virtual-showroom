@@ -37,6 +37,7 @@ export default function BookingPage() {
 
         existingBookings={bookings}
 
+
         onBooked={() => setRefreshKey((k) => k + 1)}
       />
     </div>

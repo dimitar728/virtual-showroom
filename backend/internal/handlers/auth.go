@@ -9,13 +9,54 @@ import (
 )
 
 
+type RegisterRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Role     string `json:"role"` // Optional: Only admins can set
+}
+
+func Register(c *fiber.Ctx) error {
+	var body RegisterRequest
+
+
 func Login(c *fiber.Ctx) error {
 	var body struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
+
 	if err := c.BodyParser(&body); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
+	}
+
+
+	hash, _ := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+	user := models.User{
+		Email:        body.Email,
+		PasswordHash: string(hash),
+		Role:         models.RoleUser,
+	}
+
+
+	if body.Role == "admin" {
+
+		reqUser := c.Locals("user")
+		if reqUser != nil && reqUser.(string) == "admin" {
+			user.Role = models.RoleAdmin
+		}
+	}
+
+	if err := database.DB.Create(&user).Error; err != nil {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Email already exists"})
+	}
+
+	return c.JSON(fiber.Map{"message": "User registered successfully"})
+}
+
+func Login(c *fiber.Ctx) error {
+	var body struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	var user models.User
@@ -32,6 +73,7 @@ type RegisterRequest struct {
 
 func Register(c *fiber.Ctx) error {
 	var body RegisterRequest
+
 
 	if err := c.BodyParser(&body); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
@@ -59,6 +101,8 @@ func Register(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"token": token})
 
+
+
 	hash, _ := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
 	user := models.User{
 		Email:        body.Email,
@@ -80,5 +124,6 @@ func Register(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"message": "User registered successfully"})
+
 
 }

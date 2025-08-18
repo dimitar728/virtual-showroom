@@ -58,6 +58,7 @@ export default function Login() {
             className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
           >
 
+
 import { Link } from "react-router-dom";
 
 export default function Login() {
@@ -72,6 +73,7 @@ export default function Login() {
             className="w-full px-4 py-2 border rounded-lg focus:ring focus:ring-blue-300" />
           <button type="submit"
             className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+
             Login
           </button>
         </form>

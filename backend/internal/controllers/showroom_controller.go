@@ -1,7 +1,6 @@
 package controllers
 
 import (
-
 	"fmt"
 	"mime/multipart"
 	"path/filepath"
@@ -14,7 +13,6 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
-
 
 // --- Helpers ---
 func validateModelFile(file *multipart.FileHeader) error {
@@ -31,11 +29,13 @@ func validateModelFile(file *multipart.FileHeader) error {
 // GET /api/showrooms
 func CreateShowroom(c *fiber.Ctx) error {
 
+
 // GET /api/showrooms
 func CreateShowroom(c *fiber.Ctx) error {
 	if err := utils.ValidateModelPath(filename); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
+
 
 
 	// Parse text fields
@@ -86,6 +86,11 @@ func CreateShowroom(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
 
+
+	if err := utils.ValidateModelPath(filename); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+
 }
 
 func GetShowrooms(c *fiber.Ctx) error {
@@ -94,6 +99,7 @@ func GetShowrooms(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "failed to fetch showrooms"})
 	}
 	return c.JSON(showrooms)
+
 
 }
 
@@ -110,6 +116,10 @@ func GetShowroomByID(c *fiber.Ctx) error {
 	}
 	return c.JSON(showroom)
 }
+
+
+// PATCH /api/showrooms/:id (admin only)
+func UpdateShowroom(c *fiber.Ctx) error {
 
 
 // PATCH /api/showrooms/:id (admin only)
@@ -143,6 +153,7 @@ func UpdateShowroom(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
 }
+
 
 
 	id := c.Params("id")
@@ -185,6 +196,7 @@ func UpdateShowroom(c *fiber.Ctx) error {
 
 	if err := database.DB.Save(&showroom).Error; err != nil {
 
+
 		return c.Status(500).JSON(fiber.Map{"error": "failed to update showroom"})
 	}
 	return c.JSON(showroom)
@@ -210,6 +222,7 @@ func UpdateShowroom(c *fiber.Ctx) error {
 	}
 	return c.JSON(showroom)
 }
+
 
 
 

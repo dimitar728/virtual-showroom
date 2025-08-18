@@ -22,4 +22,8 @@ func SetupRoutes(app *fiber.App) {
 	admin := api.Group("/admin", middleware.RequireAuth, middleware.RequireAdmin)
 	admin.Get("/users", handlers.GetAllUsers)
 	admin.Patch("/users/:id", handlers.UpdateUserRole)
+	admin.Patch("/users/:id/suspend", handlers.SuspendUser)
+	admin.Patch("/users/:id/reactivate", handlers.ReactivateUser)
+	admin.Delete("/users/:id", handlers.DeleteUser)
+
 }

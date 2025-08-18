@@ -11,6 +11,10 @@ func Migrate() {
 	err := DB.AutoMigrate(&models.User{})
 	err := DB.AutoMigrate(&models.Booking{})
 
+
+	err := DB.AutoMigrate(&models.User{})
+	err := DB.AutoMigrate(&models.Booking{})
+
 	err := DB.AutoMigrate(&models.Booking{})
 	err := DB.AutoMigrate(&models.User{})
 

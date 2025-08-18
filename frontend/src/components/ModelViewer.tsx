@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState, useMemo } from "react";
-
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
-
 import HotspotGizmo from "./HotspotGizmo";
 import type { Hotspot } from "../types";
 import { fetchHotspots, createHotspot } from "../services/hotspotService";
@@ -41,6 +39,7 @@ export default function ModelViewer({
     if (!containerRef.current) return;
     const W = containerRef.current.clientWidth;
     const H = containerRef.current.clientHeight;
+
 
 
 
@@ -81,6 +80,7 @@ export default function ModelViewer({
 
     // scene
 
+
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(background);
     sceneRef.current = scene;
@@ -105,6 +105,7 @@ export default function ModelViewer({
 
     const plc = new PointerLockControls(camera, renderer.domElement);
     pointerRef.current = plc;
+
 
     // camera
     const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 2000);
@@ -145,6 +146,7 @@ export default function ModelViewer({
     fpRef.current = fp;
 
 
+
     // load model
     const loader = new GLTFLoader();
     loader.load(
@@ -172,6 +174,8 @@ export default function ModelViewer({
     const animate = () => {
       requestAnimationFrame(animate);
       orbitRef.current?.update();
+
+
 
         const root = gltf.scene || gltf.scenes[0];
         root.traverse((obj) => {
@@ -475,6 +479,7 @@ export default function ModelViewer({
       {mode === "first" && (
         <div className="absolute bottom-3 left-3 text-xs text-white/80 z-10 select-none">
           Click canvas to look around • Move: WASD / Arrows • Esc to release
+
 
         </div>
       )}

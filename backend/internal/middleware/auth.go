@@ -28,6 +28,7 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		c.Set("role", claims["role"].(string))
 		c.Next()
 	}
+
 )
 
 func RequireAuth(c *fiber.Ctx) error {
@@ -45,4 +46,5 @@ func RequireAdmin(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Admin access required"})
 	}
 	return c.Next()
+
 }

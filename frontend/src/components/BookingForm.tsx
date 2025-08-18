@@ -13,12 +13,14 @@ type Props = {
 
 export default function BookingForm({ showroomId, date, existingBookings, onBooked }: Props) {
   const [slot, setSlot] = useState<{ start: string; end: string } | null>(null);
+
   onBooked: () => void;
 };
 
 export default function BookingForm({ showroomId, date, onBooked }: Props) {
   const [start, setStart] = useState("10:00");
   const [end, setEnd] = useState("11:00");
+
   const [loading, setLoading] = useState(false);
 
   if (!date) {
@@ -39,6 +41,7 @@ export default function BookingForm({ showroomId, date, onBooked }: Props) {
       const [sh, sm] = slot.start.split(":").map(Number);
       const [eh, em] = slot.end.split(":").map(Number);
 
+
       const [sh, sm] = start.split(":").map(Number);
       const [eh, em] = end.split(":").map(Number);
       startDate.setHours(sh, sm);
@@ -49,7 +52,6 @@ export default function BookingForm({ showroomId, date, onBooked }: Props) {
         end_time: endDate.toISOString(),
       });
       onBooked();
-
       setSlot(null);
 
     } catch (err) {
@@ -69,6 +71,7 @@ export default function BookingForm({ showroomId, date, onBooked }: Props) {
       <button
         type="submit"
         disabled={loading || !slot}
+
     <form
       onSubmit={handleSubmit}
       className="w-full p-4 mt-4 rounded-2xl shadow bg-white space-y-3"
@@ -99,6 +102,7 @@ export default function BookingForm({ showroomId, date, onBooked }: Props) {
       <button
         type="submit"
         disabled={loading}
+
         className="w-full py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
       >
         {loading ? "Booking..." : "Confirm Booking"}
