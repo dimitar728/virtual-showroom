@@ -65,16 +65,13 @@ func main() {
 	admin.Use(middleware.RequireAdmin())
 	{
 		admin.GET("/bookings", controllers.ListAllBookings)
-<<<<<<< HEAD
 
 			admin.POST("/showrooms/:id/upload", controllers.UploadModel)
 
 		}
-=======
 		admin.PATCH("/:id/suspend", controllers.SuspendUser)
 		admin.PATCH("/:id/reactivate", controllers.ReactivateUser)
 		admin.DELETE("/:id", controllers.DeleteUser)
->>>>>>> feature/HVSBS-110/UserManager-Suspend/delete/reactivate-users
 	}
 
 	showrooms := r.Group("/api/showrooms")
@@ -96,7 +93,6 @@ func main() {
 		admin.DELETE("/:hid", controllers.DeleteHotspot)
 	}
 
-<<<<<<< HEAD
 
 	cfg := LoadConfigFromEnv()
 
@@ -143,9 +139,6 @@ func main() {
 	}
 
 
-
-=======
->>>>>>> feature/HVSBS-110/UserManager-Suspend/delete/reactivate-users
 	port := cfg.Port
 	if port == "" {
 		port = "8080"
