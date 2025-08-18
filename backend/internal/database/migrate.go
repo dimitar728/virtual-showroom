@@ -7,12 +7,18 @@ import (
 )
 
 func Migrate() {
+
 	err := DB.AutoMigrate(&models.User{})
 	err := DB.AutoMigrate(&models.Booking{})
+
+	err := DB.AutoMigrate(&models.Booking{})
+	err := DB.AutoMigrate(&models.User{})
+
 	if err != nil {
 		log.Fatalf("Failed to migrate: %v", err)
 	}
 	log.Println("Database migrated successfully")
+
 
 	return db.AutoMigrate(
 		&models.User{},
@@ -20,4 +26,5 @@ func Migrate() {
 		&models.Booking{},
 		&models.Hotspot{}, // <-- add this
 	)
+
 }
