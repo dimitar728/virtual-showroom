@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
+
 type BookingRequest struct {
 	ShowroomID string    `json:"showroom_id" binding:"required,uuid"`
 	SlotTime   time.Time `json:"slot_time" binding:"required"`
@@ -26,6 +27,21 @@ func CreateBooking(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+func isSlotAvailable(db *gorm.DB, showroomID uuid.UUID, slotTime time.Time) (bool, error) {
+	var count int64
+	err := db.Model(&models.Booking{}).
+		Where("showroom_id = ? AND slot_time = ? AND status != ?", showroomID, slotTime, models.StatusCancelled).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count == 0, nil
+}
+
+func CreateBooking(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+
 		showroomID := uuid.MustParse(req.ShowroomID)
 		available, err := isSlotAvailable(db, showroomID, req.SlotTime)
 		if err != nil {
@@ -36,6 +52,47 @@ func CreateBooking(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusConflict, gin.H{"error": "Selected slot is not available"})
 			return
 		}
+}
+
+func CheckAvailability(db *gorm.DB) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        showroomID := c.Param("id")
+        date := c.Query("date")
+
+        day, err := time.Parse("2006-01-02", date)
+        if err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date"})
+            return
+        }
+
+        var bookings []models.Booking
+        db.Where("showroom_id = ? AND DATE(slot_time) = ? AND status != ?", showroomID, day, models.StatusCancelled).
+            Find(&bookings)
+
+        c.JSON(http.StatusOK, gin.H{
+            "showroom_id": showroomID,
+            "date":        date,
+            "bookedSlots": bookings,
+        })
+    }
+}
+
+type BookingRequest struct {
+	ShowroomID string    `json:"showroom_id" binding:"required,uuid"`
+	SlotTime   time.Time `json:"slot_time" binding:"required"`
+}
+
+// POST /api/bookings
+func CreateBooking(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetString("userID") // extracted from JWT middleware
+
+		var req BookingRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
 
 		// Prevent double booking
 		var count int64
@@ -64,6 +121,7 @@ func CreateBooking(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+
 // GET /api/showrooms/:id/availability?date=2025-08-16
 func CheckAvailability(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -87,6 +145,7 @@ func CheckAvailability(db *gorm.DB) gin.HandlerFunc {
 		})
 	}
 }
+
 
 // GET /api/bookings/me
 func GetMyBookings(db *gorm.DB) gin.HandlerFunc {
@@ -132,6 +191,7 @@ func CancelBooking(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+
 func isSlotAvailable(db *gorm.DB, showroomID uuid.UUID, slotTime time.Time) (bool, error) {
 	var count int64
 	err := db.Model(&models.Booking{}).
@@ -142,3 +202,4 @@ func isSlotAvailable(db *gorm.DB, showroomID uuid.UUID, slotTime time.Time) (boo
 	}
 	return count == 0, nil
 }
+

@@ -15,6 +15,9 @@ const (
 	StatusCancelled BookingStatus = "cancelled"
 )
 
+func (b *Booking) BeforeCreate(tx *gorm.DB) (err error) {
+	b.ID = uuid.New()
+	b.CreatedAt = time.Now()
 type Booking struct {
 	ID         uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
 	UserID     uuid.UUID `gorm:"type:uuid;not null" json:"user_id"`
@@ -27,5 +30,6 @@ type Booking struct {
 func (b *Booking) BeforeCreate(tx *gorm.DB) (err error) {
 	b.ID = uuid.New()
 	b.CreatedAt = time.Now()
+
 	return
 }

@@ -8,6 +8,11 @@ import (
 )
 
 func SetupRoutes(app *fiber.App) {
+
+	admin.Patch("/users/:id/suspend", handlers.SuspendUser)
+	admin.Patch("/users/:id/reactivate", handlers.ReactivateUser)
+	admin.Delete("/users/:id", handlers.DeleteUser)
+
 	api := app.Group("/api")
 
 	// Public
@@ -20,4 +25,5 @@ func SetupRoutes(app *fiber.App) {
 	admin.Patch("/users/:id/suspend", handlers.SuspendUser)
 	admin.Patch("/users/:id/reactivate", handlers.ReactivateUser)
 	admin.Delete("/users/:id", handlers.DeleteUser)
+
 }
