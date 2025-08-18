@@ -17,7 +17,6 @@ func main() {
 		log.Println("No .env file found; reading environment variables.")
 	}
 
-
 	cfg := LoadConfigFromEnv()
 
 	// Ensure upload dir exists
@@ -59,6 +58,13 @@ func main() {
 			admin.PATCH("/users/:id", AdminPatchUserHandler(db))
 			admin.DELETE("/users/:id", AdminDeleteUserHandler(db))
 			admin.GET("/bookings", func(c *gin.Context) { c.JSON(200, gin.H{"msg": "not implemented in this example"}) })
+			admin.POST("/showrooms/:id/upload", controllers.UploadModel)
+		}
+	}
+
+	admin.Use(middleware.RequireAdmin())
+	{
+		admin.GET("/bookings", controllers.ListAllBookings)
 
 			admin.POST("/showrooms/:id/upload", controllers.UploadModel)
 
@@ -83,7 +89,6 @@ func main() {
 		admin.PATCH("/:hid", controllers.UpdateHotspot)
 		admin.DELETE("/:hid", controllers.DeleteHotspot)
 	}
-
 
 
 	cfg := LoadConfigFromEnv()

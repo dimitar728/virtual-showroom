@@ -1,10 +1,12 @@
 package controllers
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/dimitar728/virtual-showroom/backend/internal/database"
 	"github.com/dimitar728/virtual-showroom/backend/internal/models"
+	"github.com/gin-gonic/gin"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -74,3 +76,14 @@ func CancelBooking(c *fiber.Ctx) error {
 
 	return c.JSON(booking)
 }
+
+
+func ListAllBookings(c *gin.Context) {
+	var bookings []models.Booking
+	if err := database.DB.Preload("Showroom").Preload("User").Find(&bookings).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch bookings"})
+		return
+	}
+	c.JSON(http.StatusOK, bookings)
+}
+
