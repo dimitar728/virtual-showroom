@@ -13,3 +13,11 @@ export async function createBooking(showroomId: string, payload: Partial<Booking
     body: JSON.stringify(payload),
   });
 }
+
+export async function fetchMyBookings(userId: string): Promise<Booking[]> {
+  return apiFetch(`${API}/api/users/${userId}/bookings`);
+}
+
+export async function cancelBooking(bookingId: string) {
+  return apiFetch(`${API}/api/bookings/${bookingId}`, { method: "DELETE" });
+}
