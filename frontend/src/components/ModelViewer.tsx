@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
+import { GLTFLoader } from "three/dimitar728s/jsm/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/dimitar728s/jsm/controls/OrbitControls.js";
+import { PointerLockControls } from "three/dimitar728s/jsm/controls/PointerLockControls.js";
 import HotspotGizmo from "./HotspotGizmo";
 import type { Hotspot } from "../types";
 import { fetchHotspots, createHotspot } from "../services/hotspotService";

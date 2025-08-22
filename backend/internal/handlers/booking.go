@@ -1,205 +1,77 @@
 package handlers
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/dimitar728/virtual-showroom/backend/internal/models"
-
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
+type BookingHandler struct{ DB *gorm.DB }
 
-type BookingRequest struct {
-	ShowroomID string    `json:"showroom_id" binding:"required,uuid"`
+type bookReq struct {
+	ShowroomID uuid.UUID `json:"showroom_id" binding:"required"`
 	SlotTime   time.Time `json:"slot_time" binding:"required"`
 }
 
-// POST /api/bookings
-func CreateBooking(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userID := c.GetString("userID") // extracted from JWT middleware
+func (h BookingHandler) My(c *gin.Context) {
+	uid := uuid.MustParse(c.GetString("uid"))
+	var b []models.Booking
+	h.DB.Where("user_id = ?", uid).Order("slot_time asc").Find(&b)
+	c.JSON(200, b)
+}
 
-		var req BookingRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-func isSlotAvailable(db *gorm.DB, showroomID uuid.UUID, slotTime time.Time) (bool, error) {
-	var count int64
-	err := db.Model(&models.Booking{}).
-		Where("showroom_id = ? AND slot_time = ? AND status != ?", showroomID, slotTime, models.StatusCancelled).
-		Count(&count).Error
-	if err != nil {
-		return false, err
+func (h BookingHandler) Create(c *gin.Context) {
+	var req bookReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
 	}
-	return count == 0, nil
-}
-
-func CreateBooking(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-
-
-		showroomID := uuid.MustParse(req.ShowroomID)
-		available, err := isSlotAvailable(db, showroomID, req.SlotTime)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check availability"})
-			return
-		}
-		if !available {
-			c.JSON(http.StatusConflict, gin.H{"error": "Selected slot is not available"})
-			return
-		}
-}
-
-func CheckAvailability(db *gorm.DB) gin.HandlerFunc {
-    return func(c *gin.Context) {
-        showroomID := c.Param("id")
-        date := c.Query("date")
-
-        day, err := time.Parse("2006-01-02", date)
-        if err != nil {
-            c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date"})
-            return
-        }
-
-        var bookings []models.Booking
-        db.Where("showroom_id = ? AND DATE(slot_time) = ? AND status != ?", showroomID, day, models.StatusCancelled).
-            Find(&bookings)
-
-        c.JSON(http.StatusOK, gin.H{
-            "showroom_id": showroomID,
-            "date":        date,
-            "bookedSlots": bookings,
-        })
-    }
-}
-
-type BookingRequest struct {
-	ShowroomID string    `json:"showroom_id" binding:"required,uuid"`
-	SlotTime   time.Time `json:"slot_time" binding:"required"`
-}
-
-// POST /api/bookings
-func CreateBooking(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userID := c.GetString("userID") // extracted from JWT middleware
-
-		var req BookingRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-
-		// Prevent double booking
-		var count int64
-		db.Model(&models.Booking{}).
-			Where("showroom_id = ? AND slot_time = ? AND status != ?", req.ShowroomID, req.SlotTime, models.StatusCancelled).
-			Count(&count)
-
-		if count > 0 {
-			c.JSON(http.StatusConflict, gin.H{"error": "Slot already booked"})
-			return
-		}
-
-		booking := models.Booking{
-			UserID:     uuid.MustParse(userID),
-			ShowroomID: uuid.MustParse(req.ShowroomID),
-			SlotTime:   req.SlotTime,
-			Status:     models.StatusConfirmed,
-		}
-
-		if err := db.Create(&booking).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create booking"})
-			return
-		}
-
-		c.JSON(http.StatusCreated, booking)
+	// prevent double-booking: same showroom and slot
+	var cnt int64
+	h.DB.Model(&models.Booking{}).Where("showroom_id = ? AND slot_time = ? AND status != ?", req.ShowroomID, req.SlotTime, models.BookingCancelled).Count(&cnt)
+	if cnt > 0 {
+		c.JSON(409, gin.H{"error": "slot already booked"})
+		return
 	}
-}
-
-
-// GET /api/showrooms/:id/availability?date=2025-08-16
-func CheckAvailability(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		showroomID := c.Param("id")
-		date := c.Query("date")
-
-		day, err := time.Parse("2006-01-02", date)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date"})
-			return
-		}
-
-		var bookings []models.Booking
-		db.Where("showroom_id = ? AND DATE(slot_time) = ? AND status != ?", showroomID, day, models.StatusCancelled).
-			Find(&bookings)
-
-		c.JSON(http.StatusOK, gin.H{
-			"showroom_id": showroomID,
-			"date":        date,
-			"bookedSlots": bookings,
-		})
+	b := models.Booking{
+		UserID:     uuid.MustParse(c.GetString("uid")),
+		ShowroomID: req.ShowroomID,
+		SlotTime:   req.SlotTime,
+		Status:     models.BookingPending,
 	}
-}
-
-
-// GET /api/bookings/me
-func GetMyBookings(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userID := c.GetString("userID")
-
-		var bookings []models.Booking
-		if err := db.Where("user_id = ?", userID).Find(&bookings).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookings"})
-			return
-		}
-
-		c.JSON(http.StatusOK, bookings)
+	if err := h.DB.Create(&b).Error; err != nil {
+		c.JSON(500, gin.H{"error": "failed to book"})
+		return
 	}
+	c.JSON(201, b)
 }
 
-// PATCH /api/bookings/:id/cancel
-func CancelBooking(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userID := c.GetString("userID")
-		bookingID := c.Param("id")
-
-		var booking models.Booking
-		if err := db.First(&booking, "id = ?", bookingID).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
-			return
-		}
-
-		// Only owner or admin can cancel
-		role := c.GetString("role")
-		if booking.UserID.String() != userID && role != "admin" {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Not authorized"})
-			return
-		}
-
-		booking.Status = models.StatusCancelled
-		if err := db.Save(&booking).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to cancel booking"})
-			return
-		}
-
-		c.JSON(http.StatusOK, booking)
+func (h BookingHandler) Cancel(c *gin.Context) {
+	id := uuid.MustParse(c.Param("id"))
+	uid := uuid.MustParse(c.GetString("uid"))
+	var b models.Booking
+	if err := h.DB.First(&b, "id = ?", id).Error; err != nil {
+		c.JSON(404, gin.H{"error": "not found"})
+		return
 	}
-}
-
-
-func isSlotAvailable(db *gorm.DB, showroomID uuid.UUID, slotTime time.Time) (bool, error) {
-	var count int64
-	err := db.Model(&models.Booking{}).
-		Where("showroom_id = ? AND slot_time = ? AND status != ?", showroomID, slotTime, models.StatusCancelled).
-		Count(&count).Error
-	if err != nil {
-		return false, err
+	// allow owner or admin to cancel
+	role := c.GetString("role")
+	if role != "admin" && b.UserID != uid {
+		c.JSON(403, gin.H{"error": "forbidden"})
+		return
 	}
-	return count == 0, nil
+	if err := h.DB.Model(&b).Update("status", models.BookingCancelled).Error; err != nil {
+		c.JSON(500, gin.H{"error": "cancel failed"})
+		return
+	}
+	c.JSON(200, b)
 }
 
+func (h BookingHandler) AdminList(c *gin.Context) {
+	var b []models.Booking
+	h.DB.Order("created_at desc").Find(&b)
+	c.JSON(200, b)
+}
