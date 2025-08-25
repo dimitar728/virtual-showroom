@@ -77,7 +77,6 @@ func CancelBooking(c *fiber.Ctx) error {
 	return c.JSON(booking)
 }
 
-
 func ListAllBookings(c *gin.Context) {
 	var bookings []models.Booking
 	if err := database.DB.Preload("Showroom").Preload("User").Find(&bookings).Error; err != nil {
@@ -86,4 +85,3 @@ func ListAllBookings(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, bookings)
 }
-
