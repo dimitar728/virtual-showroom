@@ -1,0 +1,27 @@
+config:
+  target: "http://localhost:8080"
+  phases:
+    - duration: 60
+      arrivalRate: 20   # 20 new users per second
+scenarios:
+  - name: "User login and booking"
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "user@example.com"
+            password: "password123"
+          capture:
+            - json: "$.token"
+              as: "jwt"
+      - get:
+          url: "/api/showrooms"
+          headers:
+            Authorization: "Bearer {{ jwt }}"
+      - post:
+          url: "/api/bookings"
+          headers:
+            Authorization: "Bearer {{ jwt }}"
+          json:
+            showroomId: "1"
+            slotTime: "2025-08-26T10:00:00Z"
