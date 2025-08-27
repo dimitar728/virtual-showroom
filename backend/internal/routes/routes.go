@@ -3,27 +3,41 @@ package routes
 import (
 	"github.com/dimitar728/virtual-showroom/backend/internal/handlers"
 	"github.com/dimitar728/virtual-showroom/backend/internal/middleware"
-
-	"github.com/gofiber/fiber/v2"
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
-func SetupRoutes(app *fiber.App) {
+func Register(r *gin.Engine, db *gorm.DB) {
+	a := handlers.AuthHandler{DB: db}
+	s := handlers.ShowroomHandler{DB: db}
+	b := handlers.BookingHandler{DB: db}
 
-	admin.Patch("/users/:id/suspend", handlers.SuspendUser)
-	admin.Patch("/users/:id/reactivate", handlers.ReactivateUser)
-	admin.Delete("/users/:id", handlers.DeleteUser)
+	api := r.Group("/api")
 
-	api := app.Group("/api")
+	auth := api.Group("/auth")
+	auth.POST("/register", a.Register)
+	auth.POST("/login", a.Login)
+	auth.GET("/me", middleware.JWTMiddleware(), a.Me)
 
-	// Public
-	api.Post("/auth/register", handlers.Register)
+	// public
+	api.GET("/showrooms", s.List)
+	api.GET("/showrooms/:id", s.Get)
 
-	// Admin only
-	admin := api.Group("/admin", middleware.RequireAuth, middleware.RequireAdmin)
-	admin.Get("/users", handlers.GetAllUsers)
-	admin.Patch("/users/:id", handlers.UpdateUserRole)
-	admin.Patch("/users/:id/suspend", handlers.SuspendUser)
-	admin.Patch("/users/:id/reactivate", handlers.ReactivateUser)
-	admin.Delete("/users/:id", handlers.DeleteUser)
+	// admin
+	admin := api.Group("/showrooms")
+	admin.Use(middleware.JWTMiddleware(), middleware.RequireAdmin())
+	admin.POST("", s.Create)
+	admin.PATCH(":id", s.Update)
+	admin.DELETE(":id", s.Delete)
 
+	// bookings
+	book := api.Group("/bookings")
+	book.Use(middleware.JWTMiddleware())
+	book.GET("/me", b.My)
+	book.POST("", b.Create)
+	book.PATCH(":id/cancel", b.Cancel)
+
+	adm := api.Group("/admin")
+	adm.Use(middleware.JWTMiddleware(), middleware.RequireAdmin())
+	adm.GET("/bookings", b.AdminList)
 }

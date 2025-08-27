@@ -2,49 +2,54 @@ package middleware
 
 import (
 	"net/http"
+	"os"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func AuthMiddleware(secret string) gin.HandlerFunc {
+type Claims struct {
+	UserID string `json:"uid"`
+	Role   string `json:"role"`
+	jwt.RegisteredClaims
+}
+
+func JWTMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		tokenStr := c.GetHeader("Authorization")
-		if tokenStr == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Missing token"})
+		auth := c.GetHeader("Authorization")
+		if !strings.HasPrefix(auth, "Bearer ") {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing token"})
 			return
 		}
-
-		token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+		tokenStr := strings.TrimPrefix(auth, "Bearer ")
+		secret := os.Getenv("JWT_SECRET")
+		token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 			return []byte(secret), nil
 		})
 		if err != nil || !token.Valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 			return
 		}
-
-		claims := token.Claims.(jwt.MapClaims)
-		c.Set("userID", claims["id"].(string))
-		c.Set("role", claims["role"].(string))
+		claims := token.Claims.(*Claims)
+		if claims.ExpiresAt != nil && claims.ExpiresAt.Time.Before(time.Now()) {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "expired token"})
+			return
+		}
+		c.Set("uid", claims.UserID)
+		c.Set("role", claims.Role)
 		c.Next()
 	}
-
-)
-
-func RequireAuth(c *fiber.Ctx) error {
-	user, err := utils.GetUserFromToken(c)
-	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
-	}
-	c.Locals("user", user)
-	return c.Next()
 }
 
-func RequireAdmin(c *fiber.Ctx) error {
-	user := c.Locals("user")
-	if user == nil || user.(string) != "admin" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Admin access required"})
+func RequireAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role := c.GetString("role")
+		if role != "admin" {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+			return
+		}
+		c.Next()
 	}
-	return c.Next()
-
 }

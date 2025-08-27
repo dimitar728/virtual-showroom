@@ -1,129 +1,87 @@
 package handlers
 
 import (
-	"github.com/dimitar728/virtual-showroom/backend/internal/database"
-	"github.com/dimitar728/virtual-showroom/backend/internal/models"
+	"net/http"
+	"os"
+	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/dimitar728/virtual-showroom/backend/internal/models"
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
+type AuthHandler struct{ DB *gorm.DB }
 
-type RegisterRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Role     string `json:"role"` // Optional: Only admins can set
+type registerReq struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=8"`
 }
 
-func Register(c *fiber.Ctx) error {
-	var body RegisterRequest
-
-
-func Login(c *fiber.Ctx) error {
-	var body struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+func (h AuthHandler) Register(c *gin.Context) {
+	var req registerReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
-
-	if err := c.BodyParser(&body); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
+	var exists int64
+	h.DB.Model(&models.User{}).Where("email = ?", req.Email).Count(&exists)
+	if exists > 0 {
+		c.JSON(http.StatusConflict, gin.H{"error": "email already exists"})
+		return
 	}
-
-
-	hash, _ := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
-	user := models.User{
-		Email:        body.Email,
-		PasswordHash: string(hash),
-		Role:         models.RoleUser,
+	hash, _ := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	user := models.User{Email: req.Email, PasswordHash: string(hash), Role: models.RoleUser}
+	if err := h.DB.Create(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
+		return
 	}
-
-
-	if body.Role == "admin" {
-
-		reqUser := c.Locals("user")
-		if reqUser != nil && reqUser.(string) == "admin" {
-			user.Role = models.RoleAdmin
-		}
-	}
-
-	if err := database.DB.Create(&user).Error; err != nil {
-		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Email already exists"})
-	}
-
-	return c.JSON(fiber.Map{"message": "User registered successfully"})
+	c.JSON(http.StatusCreated, gin.H{"id": user.ID, "email": user.Email})
 }
 
-func Login(c *fiber.Ctx) error {
-	var body struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
+type loginReq struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
+}
 
+func (h AuthHandler) Login(c *gin.Context) {
+	var req loginReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	var user models.User
-	if err := database.DB.Where("email = ?", body.Email).First(&user).Error; err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid email or password"})
+	if err := h.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		return
 	}
-
-
-type RegisterRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Role     string `json:"role"` // Optional: Only admins can set
+	if user.Suspended {
+		c.JSON(http.StatusForbidden, gin.H{"error": "account suspended"})
+		return
+	}
+	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)) != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		return
+	}
+	secret := os.Getenv("JWT_SECRET")
+	exp := time.Now().Add(24 * time.Hour)
+	t := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"uid":  user.ID.String(),
+		"role": string(user.Role),
+		"exp":  exp.Unix(),
+	})
+	token, _ := t.SignedString([]byte(secret))
+	c.JSON(http.StatusOK, gin.H{"token": token})
 }
 
-func Register(c *fiber.Ctx) error {
-	var body RegisterRequest
-
-
-	if err := c.BodyParser(&body); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
-	}
-
-
+func (h AuthHandler) Me(c *gin.Context) {
+	uid := c.GetString("uid")
 	var user models.User
-	if err := database.DB.Where("email = ?", body.Email).First(&user).Error; err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid email or password"})
+	if err := h.DB.First(&user, "id = ?", uuid.MustParse(uid)).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
 	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(body.Password)); err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid email or password"})
-	}
-
-	// Generate JWT token
-	token, err := middleware.GenerateJWT(user.ID, user.Role)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate token"})
-	}
-
-	if user.Status == models.StatusSuspended {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Account suspended"})
-	}
-
-	return c.JSON(fiber.Map{"token": token})
-
-
-
-	hash, _ := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
-	user := models.User{
-		Email:        body.Email,
-		PasswordHash: string(hash),
-		Role:         models.RoleUser,
-	}
-
-	// Optional: Allow role assignment only for admin
-	if body.Role == "admin" {
-		// Check if requester is admin
-		reqUser := c.Locals("user")
-		if reqUser != nil && reqUser.(string) == "admin" {
-			user.Role = models.RoleAdmin
-		}
-	}
-
-	if err := database.DB.Create(&user).Error; err != nil {
-		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Email already exists"})
-	}
-
-	return c.JSON(fiber.Map{"message": "User registered successfully"})
-
-
+	c.JSON(http.StatusOK, gin.H{"id": user.ID, "email": user.Email, "role": user.Role, "suspended": user.Suspended})
 }
