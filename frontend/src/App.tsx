@@ -1,12 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-<<<<<<< HEAD
 import Home from "./pages/Home";
-=======
-import Home from "./pages/Home"
->>>>>>> feature/HVSBS-110/UserManager-Suspend/delete/reactivate-users
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
+import Showrooms from "./pages/Showrooms";
+import AdminDashboard from "./pages/AdminDashboard";
+import ProtectedRoute from "./components/ProtectedRoute";
+import RoleProtectedRoute from "./components/RoleProtectedRoute";
 
 function App() {
   return (
@@ -15,18 +15,14 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="*" element={<Navigate to="/" />} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/showrooms" element={<ProtectedRoute><Showrooms /></ProtectedRoute>} />
-
-        <Route path="/admin"
-          element={
-            <RoleProtectedRoute allowedRoles={['admin']}>
-              <AdminDashboard />
-            </RoleProtectedRoute>
-          }
-        />
+        <Route path="/admin" element={
+          <RoleProtectedRoute allowedRoles={['admin']}>
+            <AdminDashboard />
+          </RoleProtectedRoute>
+        } />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
   );
