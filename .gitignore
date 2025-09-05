@@ -1,0 +1,24 @@
+# Ignore frontend node_modules
+frontend/node_modules/
+
+# Ignore backend .env file
+backend/.env
+
+# Ignore any logs
+*.log
+
+# Ignore .DS_Store files (for Mac users)
+.DS_Store
+
+# Ignore any build artifacts
+*/build/
+*/dist/
+
+# Ignore IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Ignore any local configuration files
+*.local

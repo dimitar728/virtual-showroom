@@ -1,31 +1,47 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Route,
+  Routes,
+} from "react-router-dom";
 import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Dashboard from "./pages/Dashboard";
-import Showrooms from "./pages/Showrooms";
-import AdminDashboard from "./pages/AdminDashboard";
-import ProtectedRoute from "./components/ProtectedRoute";
-import RoleProtectedRoute from "./components/RoleProtectedRoute";
+import Navbar from "./components/NavBar";
+import AdminPage from './pages/AdminPage';
+import BookingManager from './pages/BookingManager';
+import ShowroomManager from './pages/ShowroomManager';
+import UserManager from './pages/UserManager';
+import UserPage from './pages/UserPage';
+import ShowroomList from './pages/ShowroomList';
+import BookingForm from './pages/BookingForm';
+import Room3D from './pages/Room3D';
+import AdminBookings from './pages/AdminBookings';
 
-function App() {
+const App: React.FC = () => {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/showrooms" element={<ProtectedRoute><Showrooms /></ProtectedRoute>} />
-        <Route path="/admin" element={
-          <RoleProtectedRoute allowedRoles={['admin']}>
-            <AdminDashboard />
-          </RoleProtectedRoute>
-        } />
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </BrowserRouter>
+    <Router>
+      <div className="min-h-screen bg-black">
+        <Navbar />
+        <main className="container mx-auto px-4 py-8">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/admin" element={<AdminPage />}>
+              <Route path="bookings" element={<AdminBookings />} />
+              <Route path="showrooms" element={<ShowroomManager />} />
+              <Route path="users" element={<UserManager />} />
+              <Route index element={<BookingManager />} /> {/* Default admin page */}
+            </Route>
+              <Route path="/user" element={<UserPage />}>
+                <Route path="showrooms" element={<ShowroomList />} />
+                <Route path="booking" element={<BookingForm />} />
+                <Route index element={<ShowroomList />} /> {/* Default user page */}
+              </Route>
+              <Route path="/showrooms/:id" element={<Room3D />} />
+              {/* <Route path="/admin/bookings" element={<AdminBookings />} /> */}
+          </Routes>
+        </main>
+      </div>
+    </Router>
   );
-}
+};
 
 export default App;

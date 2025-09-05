@@ -1,151 +1,85 @@
 package main
 
 import (
-	"github.com/dimitar728/virtual-showroom/backend/internal/controllers"
-	"github.com/dimitar728/virtual-showroom/backend/internal/middleware"
-	"github.com/dimitar728/virtual-showroom/backend/internal/repositories"
-	"github.com/dimitar728/virtual-showroom/backend/internal/services"
-	"github.com/dimitar728/virtual-showroom/backend/pkg/config"
-	"github.com/dimitar728/virtual-showroom/backend/pkg/database"
+	"log"
+
+	"github.com/ajonesb/user-management/backend/internal/controllers"
+	"github.com/ajonesb/user-management/backend/internal/middleware"
+	"github.com/ajonesb/user-management/backend/internal/repositories"
+	"github.com/ajonesb/user-management/backend/internal/services"
+	"github.com/ajonesb/user-management/backend/pkg/config"
+	"github.com/ajonesb/user-management/backend/pkg/database"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	// Load env
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found; reading environment variables.")
-	}
-
-	cfg := LoadConfigFromEnv()
-
-	// Ensure upload dir exists
-	if err := os.MkdirAll(cfg.UploadDir, os.ModePerm); err != nil {
-		log.Fatalf("failed to create upload dir: %v", err)
-	}
-
-	// DB
-	db, err := InitDB(cfg.DatabaseURL)
+	godotenv.Load()
+	database.Connect()
+	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("failed to init db: %v", err)
+		log.Fatalf("Error loading config: %v", err)
 	}
 
-	// Migrate
-	if err := AutoMigrate(db); err != nil {
-		log.Fatalf("migration failed: %v", err)
-	}
+	userRepo := repositories.NewUserRepository(database.DB)
+	authService := services.NewAuthService(userRepo, cfg.JWTSecret)
+	userService := services.NewUserService(userRepo)
+	authController := controllers.NewAuthController(authService)
+	userController := controllers.NewUserController(userService)
 
-	// Create admin user if none exists (dev helper)
-	EnsureAdminUser(db)
-
-	// Router
 	r := gin.Default()
-	r.Use(gin.Logger(), gin.Recovery())
+	corsConfig := cors.DefaultConfig()
+	corsConfig.AllowOrigins = []string{"http://localhost:3000"}
+	corsConfig.AllowCredentials = true
+	corsConfig.AddAllowHeaders("Authorization", "Content-Type", "Accept")
+	r.Use(cors.New(corsConfig))
 
-	api := r.Group("/api")
+	r.GET("/ping", func(ctx *gin.Context) {
+		ctx.JSON(200, gin.H{"message": "pong"})
+	})
+
+	r.POST("/api/auth/register", authController.Register)
+	r.POST("/api/auth/login", authController.Login)
+
+	authorized := r.Group("/api")
+	authorized.Use(middleware.AuthMiddleware(cfg))
 	{
-		auth := api.Group("/auth")
-		{
-			auth.POST("/register", RegisterHandler(db, cfg))
-			auth.POST("/login", LoginHandler(db, cfg))
-			auth.GET("/me", AuthMiddleware(cfg.JWTSecret, db), MeHandler(db))
-		}
-
-		admin := api.Group("/admin")
-		{
-			admin.Use(AuthMiddleware(cfg.JWTSecret, db), RoleMiddleware("admin"))
-			admin.GET("/users", AdminListUsersHandler(db))
-			admin.PATCH("/users/:id", AdminPatchUserHandler(db))
-			admin.DELETE("/users/:id", AdminDeleteUserHandler(db))
-			admin.GET("/bookings", func(c *gin.Context) { c.JSON(200, gin.H{"msg": "not implemented in this example"}) })
-			admin.POST("/showrooms/:id/upload", controllers.UploadModel)
-		}
+		authorized.GET("/auth/me", authController.Me)
+		authorized.GET("/admin/users", userController.ListUsers)
+		authorized.GET("/admin/users/:id", userController.GetUser)
+		authorized.PATCH("/admin/users/:id", userController.UpdateUser)
+		authorized.PATCH("/admin/users/:id/suspend", userController.SuspendUser)
+		authorized.PATCH("/admin/users/:id/reactivate", userController.ReactivateUser)
+		authorized.DELETE("/admin/users/:id", userController.DeleteUser)
 	}
 
-	admin.Use(middleware.RequireAdmin())
-	{
-		admin.GET("/bookings", controllers.ListAllBookings)
+	showroomRepo := repositories.NewShowroomRepository(database.DB)
+	showroomService := services.NewShowroomService(showroomRepo)
+	showroomController := controllers.NewShowroomController(showroomService)
 
-			admin.POST("/showrooms/:id/upload", controllers.UploadModel)
+	bookingRepo := repositories.NewBookingRepository(database.DB)
+	bookingService := services.NewBookingService(bookingRepo)
+	bookingController := controllers.NewBookingController(bookingService)
 
-		}
-		admin.PATCH("/:id/suspend", controllers.SuspendUser)
-		admin.PATCH("/:id/reactivate", controllers.ReactivateUser)
-		admin.DELETE("/:id", controllers.DeleteUser)
-	}
+	// Public Showroom routes
+	r.GET("/api/showrooms", showroomController.GetAll)
+	r.GET("/api/showrooms/:id", showroomController.GetByID)
 
-	showrooms := r.Group("/api/showrooms")
-	{
-		showrooms.GET("", controllers.ListShowrooms)             // existing
-		showrooms.GET("/:id", controllers.GetShowroom)           // existing
-		showrooms.GET("/:id/hotspots", controllers.ListHotspots) // <-- new
+	// api := r.Group("/api") // removed unused variable
+	// You can add routes to 'api' here if needed
 
-		admin := showrooms.Group("")
-		admin.Use(middleware.RequireAdmin())                   // your existing admin guard
-		admin.POST("/:id/hotspots", controllers.CreateHotspot) // create for a showroom
-	}
+	// Admin Showroom routes
+	admin := authorized.Group("/admin")
+	admin.POST("/showrooms", showroomController.Create)
+	admin.PATCH("/showrooms/:id", showroomController.Update)
+	admin.DELETE("/showrooms/:id", showroomController.Delete)
 
-	hotspots := r.Group("/api/hotspots")
-	{
-		admin := hotspots.Group("")
-		admin.Use(middleware.RequireAdmin())
-		admin.PATCH("/:hid", controllers.UpdateHotspot)
-		admin.DELETE("/:hid", controllers.DeleteHotspot)
-	}
+	// Booking routes
+	authorized.GET("/bookings", bookingController.GetByUser)
+	authorized.POST("/bookings", bookingController.Create)
+	authorized.PATCH("/bookings/:id/cancel", bookingController.Cancel)
+	admin.GET("/bookings", bookingController.GetAll)
 
-
-	cfg := LoadConfigFromEnv()
-
-	// Ensure upload dir exists
-	if err := os.MkdirAll(cfg.UploadDir, os.ModePerm); err != nil {
-		log.Fatalf("failed to create upload dir: %v", err)
-	}
-
-	// DB
-	db, err := InitDB(cfg.DatabaseURL)
-	if err != nil {
-		log.Fatalf("failed to init db: %v", err)
-	}
-
-	// Migrate
-	if err := AutoMigrate(db); err != nil {
-		log.Fatalf("migration failed: %v", err)
-	}
-
-	// Create admin user if none exists (dev helper)
-	EnsureAdminUser(db)
-
-	// Router
-	r := gin.Default()
-	r.Use(gin.Logger(), gin.Recovery())
-
-	api := r.Group("/api")
-	{
-		auth := api.Group("/auth")
-		{
-			auth.POST("/register", RegisterHandler(db, cfg))
-			auth.POST("/login", LoginHandler(db, cfg))
-			auth.GET("/me", AuthMiddleware(cfg.JWTSecret, db), MeHandler(db))
-		}
-
-		admin := api.Group("/admin")
-		{
-			admin.Use(AuthMiddleware(cfg.JWTSecret, db), RoleMiddleware("admin"))
-			admin.GET("/users", AdminListUsersHandler(db))
-			admin.PATCH("/users/:id", AdminPatchUserHandler(db))
-			admin.DELETE("/users/:id", AdminDeleteUserHandler(db))
-			admin.GET("/bookings", func(c *gin.Context) { c.JSON(200, gin.H{"msg": "not implemented in this example"}) })
-		}
-	}
-
-
-	port := cfg.Port
-	if port == "" {
-		port = "8080"
-	}
-	addr := fmt.Sprintf(":%s", port)
-	log.Printf("listening on %s", addr)
-	if err := r.Run(addr); err != nil {
-		log.Fatalf("server failed: %v", err)
-	}
+	r.Run(":8080")
 }

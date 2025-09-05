@@ -1,89 +1,118 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/dimitar728/virtual-showroom/backend/internal/database"
-	"github.com/dimitar728/virtual-showroom/backend/internal/models"
+	"github.com/ajonesb/user-management/backend/internal/models"
+	"github.com/ajonesb/user-management/backend/internal/services"
 	"github.com/gin-gonic/gin"
-	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
-// GET /api/bookings/me
-func GetMyBookings(c *fiber.Ctx) error {
-	userID := c.Locals("userID").(uuid.UUID)
-	var bookings []models.Booking
-	if err := database.DB.Where("user_id = ?", userID).Find(&bookings).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "failed to fetch bookings"})
-	}
-	return c.JSON(bookings)
+type BookingController struct {
+	service *services.BookingService
 }
 
-// POST /api/bookings
-func CreateBooking(c *fiber.Ctx) error {
-	userID := c.Locals("userID").(uuid.UUID)
+func NewBookingController(service *services.BookingService) *BookingController {
+	return &BookingController{service: service}
+}
 
-	var body struct {
-		ShowroomID uuid.UUID `json:"showroom_id"`
-		SlotTime   time.Time `json:"slot_time"`
+func (c *BookingController) Create(ctx *gin.Context) {
+	// Debug: print raw user_id from context
+	rawUserID, ok := ctx.Get("user_id")
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in context"})
+		return
 	}
-	if err := c.BodyParser(&body); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "invalid request"})
+	fmt.Printf("[DEBUG] Raw user_id from context: %v\n", rawUserID)
+	userIDStr, ok := rawUserID.(string)
+	if !ok {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User ID in context is not a string"})
+		return
 	}
-
-	// check if slot already booked
-	var existing models.Booking
-	err := database.DB.Where("showroom_id = ? AND slot_time = ? AND status != ?", body.ShowroomID, body.SlotTime, "cancelled").First(&existing).Error
-	if err != gorm.ErrRecordNotFound {
-		return c.Status(400).JSON(fiber.Map{"error": "slot already booked"})
+	userUUID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
 	}
-
+	fmt.Printf("[DEBUG] Parsed userUUID: %v\n", userUUID)
+	var payload struct {
+		ShowroomID string `json:"showroom_id"`
+		SlotTime   string `json:"slot_time"`
+	}
+	if err := ctx.ShouldBindJSON(&payload); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	// userUUID already parsed above, remove duplicate assignment
+	showroomUUID, err := uuid.Parse(payload.ShowroomID)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid showroom ID"})
+		return
+	}
+	slotTime, err := time.Parse(time.RFC3339, payload.SlotTime)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid slot time format"})
+		return
+	}
 	booking := models.Booking{
-		UserID:     userID,
-		ShowroomID: body.ShowroomID,
-		SlotTime:   body.SlotTime,
-		Status:     "confirmed",
+		UserID:     userUUID,
+		ShowroomID: showroomUUID,
+		SlotTime:   slotTime,
+		Status:     "pending",
 	}
-	if err := database.DB.Create(&booking).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "failed to create booking"})
+	if err := c.service.Create(&booking); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
-
-	return c.Status(201).JSON(booking)
+	ctx.JSON(http.StatusCreated, booking)
 }
 
-// PATCH /api/bookings/:id/cancel
-func CancelBooking(c *fiber.Ctx) error {
-	userID := c.Locals("userID").(uuid.UUID)
-	id := c.Params("id")
-
-	var booking models.Booking
-	if err := database.DB.First(&booking, "id = ?", id).Error; err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "booking not found"})
+func (c *BookingController) GetByUser(ctx *gin.Context) {
+	userID := ctx.GetString("user_id")
+	bookings, err := c.service.GetByUser(userID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
-
-	// only allow owner or admin
-	if booking.UserID != userID && c.Locals("role") != "admin" {
-		return c.Status(403).JSON(fiber.Map{"error": "not authorized"})
-	}
-
-	booking.Status = "cancelled"
-	if err := database.DB.Save(&booking).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "failed to cancel booking"})
-	}
-
-	return c.JSON(booking)
+	ctx.JSON(http.StatusOK, bookings)
 }
 
+func (c *BookingController) Cancel(ctx *gin.Context) {
+	id := ctx.Param("id")
+	if err := c.service.Cancel(id); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"message": "Booking cancelled"})
+}
 
-func ListAllBookings(c *gin.Context) {
-	var bookings []models.Booking
-	if err := database.DB.Preload("Showroom").Preload("User").Find(&bookings).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch bookings"})
+func (bc *BookingController) GetAll(c *gin.Context) {
+	bookings, err := bc.service.GetAllBookings()
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to fetch bookings"})
+		return
+	}
+	c.JSON(200, bookings)
+}
+
+func (bc *BookingController) GetMyBookings(c *gin.Context) {
+	userIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+	bookings, err := bc.service.GetBookingsByUserID(userID) // <-- fix here
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookings"})
 		return
 	}
 	c.JSON(http.StatusOK, bookings)
 }
-

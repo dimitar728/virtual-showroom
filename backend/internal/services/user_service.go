@@ -1,9 +1,9 @@
-// internal/services/user_service.go
 package services
 
 import (
-	"github.com/dimitar728/virtual-showroom/backend/internal/models"
-	"github.com/dimitar728/virtual-showroom/backend/internal/repositories"
+	"github.com/ajonesb/user-management/backend/internal/models"
+	"github.com/ajonesb/user-management/backend/internal/repositories"
+	"github.com/google/uuid"
 )
 
 type UserService struct {
@@ -14,22 +14,42 @@ func NewUserService(userRepo *repositories.UserRepository) *UserService {
 	return &UserService{userRepo: userRepo}
 }
 
-func (s *UserService) CreateUser(user *models.User) error {
-	return s.userRepo.Create(user)
-}
-
-func (s *UserService) GetUser(id uint) (*models.User, error) {
-	return s.userRepo.FindByID(id)
+func (s *UserService) GetUser(id string) (*models.User, error) {
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		return nil, err
+	}
+	return s.userRepo.GetUser(uid)
 }
 
 func (s *UserService) UpdateUser(user *models.User) error {
-	return s.userRepo.Update(user)
+	return s.userRepo.UpdateUser(user)
 }
 
-func (s *UserService) DeleteUser(id uint) error {
-	return s.userRepo.Delete(id)
+func (s *UserService) DeleteUser(id string) error {
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		return err
+	}
+	return s.userRepo.DeleteUser(uid)
 }
 
 func (s *UserService) ListUsers() ([]models.User, error) {
-	return s.userRepo.List()
+	return s.userRepo.ListUsers()
+}
+
+func (s *UserService) SuspendUser(id string) error {
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		return err
+	}
+	return s.userRepo.SuspendUser(uid)
+}
+
+func (s *UserService) ReactivateUser(id string) error {
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		return err
+	}
+	return s.userRepo.ReactivateUser(uid)
 }
